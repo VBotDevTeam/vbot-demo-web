@@ -171,7 +171,7 @@ export const LiveDemoPage: React.FC = () => {
 
   return <main className="max-w-[1400px] w-full mx-auto px-5 sm:px-8 py-7 flex flex-col gap-5">
     <div className="flex flex-col gap-2"><div className="flex items-center gap-2 text-sky-700"><Icon icon="solar:play-circle-bold" className="text-2xl" /><span className="text-xs uppercase tracking-widest font-extrabold">VBot Web SDK</span></div><h1 className="text-2xl font-extrabold text-slate-800">Demo live: từ API đến code chạy thực tế</h1><p className="text-sm text-slate-500 max-w-3xl">Quan sát backend đối tác chuẩn bị tài khoản SDK, lấy token và chạy VBot Web SDK trong phiên demo riêng.</p></div>
-    <ApiFlowDiagram flowSteps={flowSteps} />
+    <ApiFlowDiagram flowSteps={flowSteps} sdkToken={sdkToken} copyNotice={copyNotice} onCopyToken={copySdkToken} />
     <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
       <div className="p-5 border-b border-slate-100 flex justify-between gap-3"><div><h2 className="font-bold text-slate-800 flex gap-2 items-center"><Icon icon="solar:settings-bold" className="text-sky-600" /> Cấu hình và cấp token</h2><p className="text-xs text-slate-500 mt-1">Partner API Key và SDK token chỉ tồn tại trong phiên Demo live này.</p></div><span className={`h-fit text-[10px] font-bold px-2 py-1 rounded-full ${sdkToken ? 'bg-emerald-50 text-emerald-700' : loadingToken ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'}`}>{tokenStatus}</span></div>
       <div className="p-5 space-y-4">

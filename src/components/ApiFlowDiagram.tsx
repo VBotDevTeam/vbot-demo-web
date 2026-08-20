@@ -12,66 +12,46 @@ export interface FlowStepState {
 
 export type FlowSteps = Record<1 | 2 | 3, FlowStepState>;
 
+interface Props {
+  flowSteps: FlowSteps;
+  sdkToken: string;
+  copyNotice: string;
+  onCopyToken: () => void;
+}
+
 const steps: Array<{
   number: 1 | 2 | 3;
   title: string;
-  description: string;
-  operations: Array<{ id: FlowOperation; label: string; endpoint?: string }>;
+  tasks: Array<{ label: string; operations: FlowOperation[] }>;
 }> = [
-  {
-    number: 1,
-    title: 'Chuẩn bị dữ liệu',
-    description: 'Backend dùng Partner API Key để tải dữ liệu ban đầu.',
-    operations: [
-      { id: 'hotlines', label: 'Danh sách hotline', endpoint: 'GET /api/hotline/getAll' },
-      { id: 'adminBalance', label: 'Số dư admin', endpoint: 'GET /api/account/balance' },
-    ],
-  },
-  {
-    number: 2,
-    title: 'Cấu hình tài khoản SDK',
-    description: 'Gán hotline, cấp token và chuẩn bị số dư cho tài khoản SDK.',
-    operations: [
-      { id: 'sdkToken', label: 'Cấp SDK token', endpoint: 'POST /api/sdk/tokenSdk' },
-      { id: 'sdkHotlines', label: 'Hotline của tài khoản SDK', endpoint: 'GET /api/sdk/getHotline' },
-      { id: 'funding', label: 'Nạp / trừ số dư', endpoint: 'POST /api/member/addMoney' },
-    ],
-  },
-  {
-    number: 3,
-    title: 'Lưu SDK token',
-    description: 'Backend trả token ngắn hạn để website gắn vào VBot Web SDK.',
-    operations: [{ id: 'tokenSaved', label: 'SDK token đã sẵn sàng' }],
-  },
+  { number: 1, title: 'Tạo tài khoản SDK', tasks: [{ label: 'Sinh api-key', operations: ['hotlines', 'adminBalance'] }] },
+  { number: 2, title: 'Gán thông tin', tasks: [{ label: 'Gán hotline cho thành viên', operations: ['sdkHotlines'] }, { label: 'Gán số dư cho thành viên', operations: ['funding'] }] },
+  { number: 3, title: 'Lưu SDK token', tasks: [{ label: 'SDK token', operations: ['tokenSaved'] }] },
 ];
 
-const statusIcon: Record<FlowStatus, string> = {
-  pending: 'solar:clock-circle-linear',
-  active: 'solar:refresh-circle-bold',
-  success: 'solar:check-circle-bold',
-  error: 'solar:danger-circle-bold',
-  blocked: 'solar:lock-keyhole-bold',
+const taskStatus = (states: FlowStatus[]): FlowStatus => {
+  if (states.includes('error')) return 'error';
+  if (states.includes('active')) return 'active';
+  if (states.every(state => state === 'success')) return 'success';
+  if (states.includes('pending')) return 'pending';
+  return 'blocked';
 };
 
-const statusText: Record<FlowStatus, string> = {
-  pending: 'Chờ thao tác',
-  active: 'Đang xử lý',
-  success: 'Hoàn thành',
-  error: 'Cần kiểm tra',
-  blocked: 'Chưa sẵn sàng',
-};
-
-const operationStyle: Record<FlowStatus, string> = {
-  pending: 'text-slate-400', active: 'text-sky-600', success: 'text-emerald-600', error: 'text-rose-600', blocked: 'text-slate-300',
+const checkboxClass: Record<FlowStatus, string> = {
+  pending: 'border-slate-400 bg-white text-transparent',
+  active: 'border-sky-500 bg-sky-50 text-sky-600',
+  success: 'border-emerald-500 bg-emerald-500 text-white',
+  error: 'border-rose-500 bg-rose-50 text-rose-600',
+  blocked: 'border-slate-300 bg-white text-transparent',
 };
 
 const connectorClass = (current: FlowStepState, next: FlowStepState) => {
-  if (current.status === 'success' && ['active', 'success'].includes(next.status)) return 'backend-flow-connector--complete';
+  if (current.status === 'success' && ['pending', 'active', 'success'].includes(next.status)) return 'backend-flow-connector--complete';
   if (current.status === 'active' || next.status === 'active') return 'backend-flow-connector--active';
   return '';
 };
 
-export const ApiFlowDiagram: React.FC<{ flowSteps: FlowSteps }> = ({ flowSteps }) => (
+export const ApiFlowDiagram: React.FC<Props> = ({ flowSteps, sdkToken, copyNotice, onCopyToken }) => (
   <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
     <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
       <div>
@@ -86,25 +66,25 @@ export const ApiFlowDiagram: React.FC<{ flowSteps: FlowSteps }> = ({ flowSteps }
         const next = steps[index + 1];
         return <React.Fragment key={step.number}>
           <li className={`backend-flow-card backend-flow-card--${state.status} rounded-xl border p-4`}>
-            <div className="flex items-start gap-3">
+            <div className="flex items-center gap-3">
               <span className="backend-flow-number shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold">{state.status === 'success' ? <Icon icon="solar:check-circle-bold" className="text-xl" /> : step.number}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex gap-2 items-start justify-between">
-                  <h3 className="font-bold text-sm text-slate-800">{step.number}. {step.title}</h3>
-                  <span className="backend-flow-status shrink-0 text-[10px] font-bold inline-flex items-center gap-1"><Icon icon={statusIcon[state.status]} className={state.status === 'active' ? 'animate-spin' : ''} />{statusText[state.status]}</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{state.message || step.description}</p>
-              </div>
+              <h3 className="font-bold text-sm text-slate-800">{step.title}</h3>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
-              {step.operations.map(operation => {
-                const operationStatus = state.operations[operation.id] || 'blocked';
-                return <div key={operation.id} className="flex items-start gap-2 text-xs">
-                  <Icon icon={statusIcon[operationStatus]} className={`mt-0.5 shrink-0 ${operationStyle[operationStatus]} ${operationStatus === 'active' ? 'animate-spin' : ''}`} />
-                  <span className="min-w-0 text-slate-600"><span className="font-semibold">{operation.label}</span>{operation.endpoint && <code className="block text-[10px] text-slate-400 mt-0.5 break-all">{operation.endpoint}</code>}</span>
+            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
+              {step.tasks.map(task => {
+                const status = taskStatus(task.operations.map(operation => state.operations[operation] || 'blocked'));
+                return <div key={task.label} className="flex items-center gap-2 text-sm text-slate-700">
+                  <span className={`w-5 h-5 rounded-[4px] border flex shrink-0 items-center justify-center ${checkboxClass[status]}`}>
+                    {status === 'success' && <Icon icon="solar:check-read-bold" className="text-sm" />}
+                    {status === 'active' && <Icon icon="solar:refresh-bold" className="text-sm animate-spin" />}
+                    {status === 'error' && <Icon icon="solar:close-circle-bold" className="text-sm" />}
+                  </span>
+                  <span>{task.label}</span>
                 </div>;
               })}
             </div>
+            {step.number === 3 && sdkToken && <div className="mt-3 flex overflow-hidden rounded-lg border border-slate-200"><input readOnly value={sdkToken} aria-label="SDK token" className="min-w-0 flex-1 bg-slate-50 px-2.5 py-1.5 font-mono text-xs text-slate-700 outline-none" /><button onClick={onCopyToken} title="Sao chép SDK token" aria-label="Sao chép SDK token" className="w-10 border-l border-slate-200 text-slate-600 hover:bg-slate-50"><Icon icon="solar:copy-bold" className="mx-auto" /></button></div>}
+            {step.number === 3 && copyNotice && <p className="mt-2 text-xs text-emerald-700">{copyNotice}</p>}
           </li>
           {next && <li aria-hidden="true" className={`backend-flow-connector ${connectorClass(state, flowSteps[next.number])}`}><span /></li>}
         </React.Fragment>;
