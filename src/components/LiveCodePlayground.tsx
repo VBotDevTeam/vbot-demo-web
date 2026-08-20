@@ -9,7 +9,7 @@ interface Props {
 const escapeAttribute = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export const LiveCodePlayground: React.FC<Props> = ({ mode, token, onRunState }) => {
-  const sdkBundleUrl = `${import.meta.env.BASE_URL}vbot-sdk.umd.js`;
+  const sdkBundleUrl = 'https://cdn.vbot.vn/vbot-sdk/vbot-sdk.umd.js';
   const [code, setCode] = useState(() => getLiveDemoTemplate(mode, sdkBundleUrl));
   const [srcDoc, setSrcDoc] = useState('');
   const [notice, setNotice] = useState('Chưa chạy preview');
@@ -36,7 +36,7 @@ export const LiveCodePlayground: React.FC<Props> = ({ mode, token, onRunState })
     activeRunIdRef.current = id;
     const instrument = `<script>(function(){var runId=${id};function post(event){window.parent.postMessage({type:'vbot-live-demo',runId:runId,event:event},'*')}window.addEventListener('error',function(){post('runtime-error')});window.addEventListener('unhandledrejection',function(){post('runtime-error')});var widget=document.querySelector('vbot-widget');if(!widget){post('bootstrap-error');return}widget.addEventListener('vbot:onUserConnected',function(){post('connected')});widget.addEventListener('vbot:onUserConnectionFailed',function(){post('connection-failed')});widget.addEventListener('vbot:onDisconnected',function(){post('disconnected')});Promise.race([customElements.whenDefined('vbot-widget'),new Promise(function(resolve){setTimeout(resolve,6000)})]).then(function(){if(customElements.get('vbot-widget'))post('widget-ready');else post('bootstrap-error')});})();</script>`;
     const rendered = code
-      // Accept templates created before the app-base fix as well.
+      // Accept templates created before the CDN experiment as well.
       .replaceAll('src="/vbot-sdk.umd.js"', `src="${sdkBundleUrl}"`)
       .replaceAll("src='/vbot-sdk.umd.js'", `src="${sdkBundleUrl}"`)
       .replaceAll(SDK_TOKEN_PLACEHOLDER, escapeAttribute(token))
