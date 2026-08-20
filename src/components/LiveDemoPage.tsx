@@ -5,7 +5,6 @@ import { LiveCodePlayground } from './LiveCodePlayground';
 import { IntegrationMode } from '../data/liveDemoTemplate';
 
 interface Hotline { hotline_name: string; hotline_number: string; hotline_code: string; hotline_type?: string }
-interface ApiSummary { label: string; endpoint: string; status?: number; message: string; ok: boolean }
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://open-api-staging.vbot.vn/v3.0';
 const initialFlow: FlowSteps = {
@@ -26,15 +25,15 @@ export const LiveDemoPage: React.FC = () => {
   const [member, setMember] = useState<Record<string, unknown> | null>(null);
   const [sdkToken, setSdkToken] = useState('');
   const [flowSteps, setFlowSteps] = useState<FlowSteps>(initialFlow);
-  const [summaries, setSummaries] = useState<ApiSummary[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [loadingToken, setLoadingToken] = useState(false);
+  const [moneyAmount, setMoneyAmount] = useState('1000');
+  const [isAdjustingMoney, setIsAdjustingMoney] = useState(false);
   const keyRef = useRef<HTMLInputElement>(null);
   const memberRef = useRef<HTMLInputElement>(null);
 
   const tokenStatus = useMemo(() => loadingToken ? 'Đang cấp token' : sdkToken ? 'Đã sẵn sàng chạy code' : flowSteps[5].status === 'error' ? 'Cấp token thất bại' : 'Chưa có token', [loadingToken, sdkToken, flowSteps]);
   const setStep = (number: number, state: FlowSteps[number]) => setFlowSteps(previous => ({ ...previous, [number]: state }));
-  const addSummary = (summary: ApiSummary) => setSummaries(previous => [summary, ...previous].slice(0, 5));
   const invalidateToken = (reason = 'Thông tin đã thay đổi; cần đồng bộ lại.') => {
     if (!sdkToken) return;
     setSdkToken('');
@@ -62,10 +61,9 @@ export const LiveDemoPage: React.FC = () => {
       const details = result.data as Record<string, unknown> | undefined;
       if (!details) throw new Error('Không tìm thấy thông tin thành viên.');
       setMember(details); setStep(4, { status: 'success', message: 'Đã xác thực thông tin thành viên.' });
-      addSummary({ label: 'Thành viên', endpoint: '/api/member/getByMemberNo', status: response.status, ok: true, message: 'Đã tải thông tin thành viên.' });
     } catch (error) {
       const message = safeMessage(error instanceof Error ? error.message : '', 'Không tải được thông tin thành viên.');
-      setMember(null); setStep(4, { status: 'error', message }); addSummary({ label: 'Thành viên', endpoint: '/api/member/getByMemberNo', ok: false, message });
+      setMember(null); setStep(4, { status: 'error', message });
     }
   };
 
@@ -76,11 +74,9 @@ export const LiveDemoPage: React.FC = () => {
       const result = await parseResponse(response);
       setAdminBalance(typeof result.data === 'number' ? result.data : null);
       setStep(3, { status: 'success', message: 'Đã cập nhật số dư tài khoản.' });
-      addSummary({ label: 'Số dư tài khoản', endpoint: '/api/account/balance', status: response.status, ok: true, message: 'Đã cập nhật số dư sau khi cấp SDK.' });
     } catch (error) {
       const message = safeMessage(error instanceof Error ? error.message : '', 'Không cập nhật được số dư.');
       setStep(3, { status: 'error', message });
-      addSummary({ label: 'Số dư tài khoản', endpoint: '/api/account/balance', ok: false, message });
     } finally {
       await loadMember();
     }
@@ -90,8 +86,8 @@ export const LiveDemoPage: React.FC = () => {
     if (!partnerApiKey.trim()) { setStep(1, { status: 'blocked', message: 'Cần nhập Partner API Key.' }); setStep(2, { status: 'blocked', message: 'Cần Partner API Key.' }); setStep(3, { status: 'blocked', message: 'Cần Partner API Key.' }); keyRef.current?.focus(); return; }
     setLoadingData(true); setMember(null); setHotlines([]); setAdminBalance(null);
     setStep(1, { status: 'success', message: 'Thông tin đã sẵn sàng, đang tải dữ liệu.' }); setStep(2, { status: 'active', message: 'Đang tải hotline…' }); setStep(3, { status: 'active', message: 'Đang tải số dư…' }); setStep(4, { status: 'blocked', message: 'Chờ API số dư hoàn tất.' });
-    const hotlineRequest = (async () => { try { const response = await api('/api/hotline/getAll', { method: 'GET' }); const result = await parseResponse(response); const list = Array.isArray(result.data) ? result.data as Hotline[] : []; setHotlines(list); setSelectedHotlines(previous => previous.filter(code => list.some(item => item.hotline_code === code))); setStep(2, { status: 'success', message: `${list.length} hotline sẵn sàng chọn.` }); addSummary({ label: 'Hotline', endpoint: '/api/hotline/getAll', status: response.status, ok: true, message: `Đã tải ${list.length} hotline.` }); } catch (error) { const message = safeMessage(error instanceof Error ? error.message : '', 'Không tải được hotline.'); setStep(2, { status: 'error', message }); addSummary({ label: 'Hotline', endpoint: '/api/hotline/getAll', ok: false, message }); } })();
-    const balanceRequest = (async () => { try { const response = await api('/api/account/balance', { method: 'GET' }); const result = await parseResponse(response); setAdminBalance(typeof result.data === 'number' ? result.data : null); setStep(3, { status: 'success', message: 'Đã tải số dư tài khoản.' }); addSummary({ label: 'Số dư tài khoản', endpoint: '/api/account/balance', status: response.status, ok: true, message: 'Đã tải số dư tài khoản.' }); } catch (error) { const message = safeMessage(error instanceof Error ? error.message : '', 'Không tải được số dư.'); setStep(3, { status: 'error', message }); addSummary({ label: 'Số dư tài khoản', endpoint: '/api/account/balance', ok: false, message }); } finally { await loadMember(); } })();
+    const hotlineRequest = (async () => { try { const response = await api('/api/hotline/getAll', { method: 'GET' }); const result = await parseResponse(response); const list = Array.isArray(result.data) ? result.data as Hotline[] : []; setHotlines(list); setSelectedHotlines(previous => previous.filter(code => list.some(item => item.hotline_code === code))); setStep(2, { status: 'success', message: `${list.length} hotline sẵn sàng chọn.` }); } catch (error) { const message = safeMessage(error instanceof Error ? error.message : '', 'Không tải được hotline.'); setStep(2, { status: 'error', message }); } })();
+    const balanceRequest = (async () => { try { const response = await api('/api/account/balance', { method: 'GET' }); const result = await parseResponse(response); setAdminBalance(typeof result.data === 'number' ? result.data : null); setStep(3, { status: 'success', message: 'Đã tải số dư tài khoản.' }); } catch (error) { const message = safeMessage(error instanceof Error ? error.message : '', 'Không tải được số dư.'); setStep(3, { status: 'error', message }); } finally { await loadMember(); } })();
     await Promise.all([hotlineRequest, balanceRequest]); setLoadingData(false);
     setStep(5, { status: 'pending', message: 'Sẵn sàng cấp token khi có Member No.' }); setStep(6, { status: 'blocked', message: 'Cần cấp SDK token.' }); setStep(7, { status: 'blocked', message: 'Chưa chạy preview.' });
   };
@@ -103,11 +99,37 @@ export const LiveDemoPage: React.FC = () => {
     try {
       const response = await api('/api/sdk/tokenSdk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_no: memberNo.trim(), hotline_codes: selectedHotlines }) });
       const result = await parseResponse(response); if (typeof result.data !== 'string' || !result.data) throw new Error('API không trả SDK token hợp lệ.');
-      setSdkToken(result.data); setStep(5, { status: 'success', message: 'Token đã được giữ trong bộ nhớ phiên demo.' }); setStep(6, { status: 'pending', message: 'Dán/chỉnh sửa code rồi bấm Chạy code.' }); addSummary({ label: 'SDK token', endpoint: '/api/sdk/tokenSdk', status: response.status, ok: true, message: 'Token đã cấp thành công (được ẩn).' });
+      setSdkToken(result.data); setStep(5, { status: 'success', message: 'Token đã được giữ trong bộ nhớ phiên demo.' }); setStep(6, { status: 'pending', message: 'Dán/chỉnh sửa code rồi bấm Chạy code.' });
       // Same as the existing Settings page: refresh balance and SDK member details after provisioning.
       await refreshSdkAccount();
-    } catch (error) { const message = safeMessage(error instanceof Error ? error.message : '', 'Không thể cấp SDK token.'); setStep(5, { status: 'error', message }); addSummary({ label: 'SDK token', endpoint: '/api/sdk/tokenSdk', ok: false, message }); }
+    } catch (error) { const message = safeMessage(error instanceof Error ? error.message : '', 'Không thể cấp SDK token.'); setStep(5, { status: 'error', message }); }
     finally { setLoadingToken(false); }
+  };
+
+  const adjustMemberMoney = async (isSubtraction: boolean) => {
+    const amount = Number(moneyAmount);
+    if (!partnerApiKey.trim()) { keyRef.current?.focus(); return; }
+    if (!memberNo.trim()) { memberRef.current?.focus(); return; }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      window.alert('Vui lòng nhập số tiền dương hợp lệ.');
+      return;
+    }
+
+    setIsAdjustingMoney(true);
+    try {
+      const response = await api('/api/member/addMoney', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_no: memberNo.trim(), money: isSubtraction ? -amount : amount }),
+      });
+      await parseResponse(response);
+      await refreshSdkAccount();
+      window.alert(`${isSubtraction ? 'Trừ' : 'Nạp'} tiền thành công cho ${memberNo.trim()}.`);
+    } catch (error) {
+      window.alert(safeMessage(error instanceof Error ? error.message : '', 'Không thể cập nhật số dư nhân viên.'));
+    } finally {
+      setIsAdjustingMoney(false);
+    }
   };
 
   const handlePreview = (state: 'running' | 'loaded' | 'event-error' | 'connected', message?: string) => {
@@ -119,14 +141,17 @@ export const LiveDemoPage: React.FC = () => {
   const toggleHotline = (code: string) => { invalidateToken(); setSelectedHotlines(previous => previous.includes(code) ? previous.filter(value => value !== code) : [...previous, code]); };
   return <main className="p-4 md:p-6 max-w-none mx-auto space-y-5">
     <div className="flex flex-col gap-2"><div className="flex items-center gap-2 text-sky-700"><Icon icon="solar:play-circle-bold" className="text-2xl" /><span className="text-xs uppercase tracking-widest font-extrabold">VBot Web SDK</span></div><h1 className="text-2xl font-extrabold text-slate-800">Demo live: từ API đến code chạy thực tế</h1><p className="text-sm text-slate-500 max-w-3xl">Quan sát request cấp token, đặt token vào HTML mẫu và theo dõi event SDK trong một phiên preview riêng. Key và token chỉ tồn tại trong bộ nhớ của trang này.</p></div>
-    <section className="grid xl:grid-cols-[minmax(0,1.05fr)_minmax(440px,.95fr)] gap-5 items-start"><div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"><div className="p-5 border-b border-slate-100 flex justify-between gap-3"><div><h2 className="font-bold text-slate-800 flex gap-2 items-center"><Icon icon="solar:settings-bold" className="text-sky-600" /> Cấu hình và cấp token</h2><p className="text-xs text-slate-500 mt-1">Dùng Partner API Key chỉ cho phiên demo này.</p></div><span className={`h-fit text-[10px] font-bold px-2 py-1 rounded-full ${sdkToken ? 'bg-emerald-50 text-emerald-700' : loadingToken ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'}`}>{tokenStatus}</span></div>
+    <section className="grid xl:grid-cols-[minmax(330px,.58fr)_minmax(0,1.42fr)] gap-5 items-start"><ApiFlowDiagram flowSteps={flowSteps} /><div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"><div className="p-5 border-b border-slate-100 flex justify-between gap-3"><div><h2 className="font-bold text-slate-800 flex gap-2 items-center"><Icon icon="solar:settings-bold" className="text-sky-600" /> Cấu hình và cấp token</h2><p className="text-xs text-slate-500 mt-1">Dùng Partner API Key chỉ cho phiên demo này.</p></div><span className={`h-fit text-[10px] font-bold px-2 py-1 rounded-full ${sdkToken ? 'bg-emerald-50 text-emerald-700' : loadingToken ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'}`}>{tokenStatus}</span></div>
       <div className="p-5 space-y-4"><div className="grid sm:grid-cols-2 gap-4"><label className="text-xs font-bold text-slate-600">Cơ chế giao diện<select value={mode} onChange={event => { invalidateToken('Chế độ giao diện đã thay đổi; cần đồng bộ lại.'); setMode(event.target.value as IntegrationMode); }} className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium outline-none focus:border-sky-500"><option value="builtin">Built-in Native UI</option><option value="headless">Headless Custom UI</option></select></label><label className="text-xs font-bold text-slate-600">Mã nhân viên (Member No)<input ref={memberRef} value={memberNo} onChange={event => { invalidateToken(); setMemberNo(event.target.value); }} placeholder="Ví dụ: agent_001" className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-500" /></label></div>
         <label className="block text-xs font-bold text-slate-600">VBot Partner API Key<input ref={keyRef} type="password" value={partnerApiKey} onChange={event => { invalidateToken(); setPartnerApiKey(event.target.value); }} placeholder="Chỉ dùng trong phiên demo" className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-500" /></label>
         <div className="flex flex-wrap gap-2"><button onClick={loadData} disabled={loadingData} className="bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 px-4 py-2 rounded-lg text-white text-xs font-bold"><Icon icon="solar:restart-bold" className={`inline mr-1 ${loadingData ? 'animate-spin' : ''}`} />{loadingData ? 'Đang tải…' : 'Tải dữ liệu'}</button><button onClick={requestToken} disabled={loadingToken || !partnerApiKey.trim() || !memberNo.trim()} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 px-4 py-2 rounded-lg text-white text-xs font-bold"><Icon icon="solar:key-bold" className="inline mr-1" />{loadingToken ? 'Đang cấp…' : 'Đồng bộ SDK'}</button>{hotlines.length > 0 && selectedHotlines.length === 0 && <span className="text-xs text-amber-600 self-center">Có thể chọn hotline để luồng rõ ràng hơn.</span>}</div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><div className="flex items-center gap-2 text-xs font-bold text-slate-700"><Icon icon="solar:phone-bold" className="text-sky-600" /> Hotlines SDK</div>{hotlines.length ? <div className="mt-2 max-h-36 overflow-y-auto grid sm:grid-cols-2 gap-2">{hotlines.map(item => <label key={item.hotline_code} className={`flex gap-2 items-center p-2 bg-white rounded border text-xs cursor-pointer ${selectedHotlines.includes(item.hotline_code) ? 'border-sky-300 bg-sky-50' : 'border-slate-200'}`}><input type="checkbox" checked={selectedHotlines.includes(item.hotline_code)} onChange={() => toggleHotline(item.hotline_code)} className="accent-sky-600" /><span className="min-w-0"><b className="block truncate">{item.hotline_name}</b><span className="text-slate-400 font-mono">{item.hotline_number || item.hotline_code}</span></span></label>)}</div> : <p className="text-xs text-slate-400 mt-2">Bấm “Tải dữ liệu” để lấy danh sách hotline.</p>}</div>
         <div className="grid sm:grid-cols-2 gap-3"><div className="rounded-lg bg-slate-50 border border-slate-200 p-3"><span className="text-[10px] uppercase font-bold text-slate-400">Số dư admin</span><div className="mt-1 font-bold text-slate-700">{formatMoney(adminBalance)}</div></div><div className="rounded-lg bg-slate-50 border border-slate-200 p-3"><span className="text-[10px] uppercase font-bold text-slate-400">Tài khoản SDK</span><div className="mt-1 text-xs font-bold text-slate-700">{member ? String(member.member_name || member.member_no || 'Đã xác thực') : 'Chưa tải'}</div>{member && <div className="mt-1 text-[11px] text-slate-500">Số dư: {formatMoney(typeof member.member_money === 'number' ? member.member_money : null)}</div>}</div></div>
-        {summaries.length > 0 && <div className="border-t border-slate-100 pt-3"><h3 className="text-xs font-bold text-slate-600 mb-2">Phản hồi API rút gọn</h3><div className="space-y-1.5">{summaries.map((summary, index) => <div key={`${summary.label}-${index}`} className="flex gap-2 text-[11px] rounded bg-slate-50 px-2.5 py-2"><Icon icon={summary.ok ? 'solar:check-circle-bold' : 'solar:danger-circle-bold'} className={summary.ok ? 'text-emerald-600' : 'text-rose-600'} /><span className="font-mono text-slate-600">{summary.endpoint}</span><span className="text-slate-400">{summary.status ? `HTTP ${summary.status}` : ''}</span><span className="ml-auto text-slate-500 truncate">{summary.message}</span></div>)}</div></div>}
-      </div></div><ApiFlowDiagram flowSteps={flowSteps} /></section>
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2"><Icon icon="solar:wallet-money-bold" className="text-emerald-600" /><div><h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Số dư & nạp tiền</h3><p className="text-[11px] text-slate-500 mt-0.5">Cập nhật trực tiếp số dư tài khoản SDK đang chọn.</p></div></div>
+          <div className="p-4 grid md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end"><label className="text-xs font-bold text-slate-600">Số tiền cần nạp / trừ (VND)<input type="number" min="1" value={moneyAmount} onChange={event => setMoneyAmount(event.target.value)} className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-sky-500" placeholder="Ví dụ: 1000" /></label><div className="flex gap-2"><button onClick={() => adjustMemberMoney(false)} disabled={isAdjustingMoney || !partnerApiKey.trim() || !memberNo.trim()} className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-xs font-bold text-white"><Icon icon="solar:card-transfer-bold" className="inline mr-1" />{isAdjustingMoney ? 'Đang xử lý…' : 'Nạp tiền'}</button><button onClick={() => adjustMemberMoney(true)} disabled={isAdjustingMoney || !partnerApiKey.trim() || !memberNo.trim()} className="px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-xs font-bold text-white"><Icon icon="solar:card-transfer-bold" className="inline mr-1 rotate-180" />{isAdjustingMoney ? 'Đang xử lý…' : 'Trừ tiền'}</button></div></div>
+        </div>
+      </div></div></section>
     <LiveCodePlayground key={mode} mode={mode} token={sdkToken} onRunState={handlePreview} />
   </main>;
 };
