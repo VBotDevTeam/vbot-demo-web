@@ -2,51 +2,112 @@ import React from 'react';
 import { Icon } from '@iconify/react';
 
 export type FlowStatus = 'pending' | 'active' | 'success' | 'error' | 'blocked';
-export interface FlowStepState { status: FlowStatus; message?: string }
-export type FlowSteps = Record<number, FlowStepState>;
+export type FlowOperation = 'hotlines' | 'adminBalance' | 'sdkToken' | 'sdkHotlines' | 'funding' | 'tokenSaved';
 
-const steps = [
-  ['Chuẩn bị thông tin', 'Nhập API Key, Member No, chọn mode và hotline.', 'Không gọi API'],
-  ['Tải hotline', 'Lấy danh sách hotline có thể cấp cho SDK.', 'GET /api/hotline/getAll'],
-  ['Tải số dư tài khoản', 'Kiểm tra số dư tài khoản quản trị.', 'GET /api/account/balance'],
-  ['Kiểm tra thành viên', 'Xác thực nhân viên sau khi tải số dư xong.', 'GET /api/member/getByMemberNo'],
-  ['Cấp SDK token', 'Cấp token theo nhân viên và hotline đã chọn.', 'POST /api/sdk/tokenSdk'],
-  ['Chạy code tích hợp', 'Thay placeholder token và nạp iframe preview.', 'Không gọi Open API'],
-  ['SDK kết nối', 'Chờ sự kiện kết nối từ widget trong preview.', 'vbot:onUserConnected'],
+export interface FlowStepState {
+  status: FlowStatus;
+  message?: string;
+  operations: Partial<Record<FlowOperation, FlowStatus>>;
+}
+
+export type FlowSteps = Record<1 | 2 | 3, FlowStepState>;
+
+const steps: Array<{
+  number: 1 | 2 | 3;
+  title: string;
+  description: string;
+  operations: Array<{ id: FlowOperation; label: string; endpoint?: string }>;
+}> = [
+  {
+    number: 1,
+    title: 'Chuẩn bị dữ liệu',
+    description: 'Backend dùng Partner API Key để tải dữ liệu ban đầu.',
+    operations: [
+      { id: 'hotlines', label: 'Danh sách hotline', endpoint: 'GET /api/hotline/getAll' },
+      { id: 'adminBalance', label: 'Số dư admin', endpoint: 'GET /api/account/balance' },
+    ],
+  },
+  {
+    number: 2,
+    title: 'Cấu hình tài khoản SDK',
+    description: 'Gán hotline, cấp token và chuẩn bị số dư cho tài khoản SDK.',
+    operations: [
+      { id: 'sdkToken', label: 'Cấp SDK token', endpoint: 'POST /api/sdk/tokenSdk' },
+      { id: 'sdkHotlines', label: 'Hotline của tài khoản SDK', endpoint: 'GET /api/sdk/getHotline' },
+      { id: 'funding', label: 'Nạp / trừ số dư', endpoint: 'POST /api/member/addMoney' },
+    ],
+  },
+  {
+    number: 3,
+    title: 'Lưu SDK token',
+    description: 'Backend trả token ngắn hạn để website gắn vào VBot Web SDK.',
+    operations: [{ id: 'tokenSaved', label: 'SDK token đã sẵn sàng' }],
+  },
 ];
 
-const statusStyle: Record<FlowStatus, string> = {
-  pending: 'bg-slate-100 text-slate-500 border-slate-200',
-  active: 'bg-sky-50 text-sky-700 border-sky-200',
-  success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  error: 'bg-rose-50 text-rose-700 border-rose-200',
-  blocked: 'bg-amber-50 text-amber-700 border-amber-200',
+const statusIcon: Record<FlowStatus, string> = {
+  pending: 'solar:clock-circle-linear',
+  active: 'solar:refresh-circle-bold',
+  success: 'solar:check-circle-bold',
+  error: 'solar:danger-circle-bold',
+  blocked: 'solar:lock-keyhole-bold',
 };
-const statusText: Record<FlowStatus, string> = { pending: 'Chờ', active: 'Đang chạy', success: 'Hoàn tất', error: 'Lỗi', blocked: 'Đang chặn' };
-const statusIcon: Record<FlowStatus, string> = { pending: 'solar:clock-circle-linear', active: 'solar:refresh-circle-bold', success: 'solar:check-circle-bold', error: 'solar:danger-circle-bold', blocked: 'solar:lock-keyhole-bold' };
+
+const statusText: Record<FlowStatus, string> = {
+  pending: 'Chờ thao tác',
+  active: 'Đang xử lý',
+  success: 'Hoàn thành',
+  error: 'Cần kiểm tra',
+  blocked: 'Chưa sẵn sàng',
+};
+
+const operationStyle: Record<FlowStatus, string> = {
+  pending: 'text-slate-400', active: 'text-sky-600', success: 'text-emerald-600', error: 'text-rose-600', blocked: 'text-slate-300',
+};
+
+const connectorClass = (current: FlowStepState, next: FlowStepState) => {
+  if (current.status === 'success' && ['active', 'success'].includes(next.status)) return 'backend-flow-connector--complete';
+  if (current.status === 'active' || next.status === 'active') return 'backend-flow-connector--active';
+  return '';
+};
 
 export const ApiFlowDiagram: React.FC<{ flowSteps: FlowSteps }> = ({ flowSteps }) => (
-  <section className="bg-white border border-slate-200 rounded shadow-xs overflow-hidden">
-    <div className="px-5 py-3 border-b border-slate-200 flex items-start justify-between gap-3">
+  <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+    <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
       <div>
-        <h2 className="font-bold text-slate-800 flex items-center gap-2"><Icon icon="solar:diagram-up-bold" className="text-sky-600" /> Luồng API thời gian thực</h2>
-        <p className="text-xs text-slate-500 mt-1">Trạng thái cập nhật theo từng request và event SDK.</p>
+        <h2 className="font-bold text-slate-800 flex items-center gap-2"><Icon icon="solar:server-path-bold" className="text-sky-600" /> Sơ đồ xử lý backend đối tác</h2>
+        <p className="text-xs text-slate-500 mt-1">Mỗi bước cập nhật theo đúng thao tác trong phần cấu hình bên dưới.</p>
       </div>
-      <span className="text-[10px] font-bold uppercase text-slate-400">7 bước</span>
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-sky-700 bg-sky-50 px-2 py-1 rounded-full">3 bước</span>
     </div>
-    <ol className="p-4 flex gap-2 overflow-x-auto">
-      {steps.map(([title, description, endpoint], index) => {
-        const number = index + 1;
-        const state = flowSteps[number];
-        return <li key={title} className="flex items-stretch min-w-[170px] flex-1 gap-2">
-          <div className="flex flex-col items-center pt-2"><span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-extrabold border ${statusStyle[state.status]}`}>{number}</span>{number < steps.length && <span className="mt-2 w-6 border-t-2 border-dashed border-slate-200 xl:hidden" />}</div>
-          <div className={`flex-1 min-w-0 rounded-lg border px-3 py-2 ${state.status === 'active' ? 'border-sky-200 bg-sky-50/40' : 'border-slate-100'}`}>
-            <div className="font-bold text-xs text-slate-700 truncate" title={title}>{title}</div>
-            <div className="font-mono text-[10px] text-slate-400 mt-0.5 truncate" title={endpoint}>{endpoint}</div>
-            <p className="text-[11px] text-slate-500 mt-2 leading-snug line-clamp-2">{state.message || description}</p>
-            <span className={`mt-2 inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-[10px] font-bold ${statusStyle[state.status]}`}><Icon icon={statusIcon[state.status]} className={state.status === 'active' ? 'animate-spin' : ''} />{statusText[state.status]}</span>
-          </div>
-        </li>
+    <ol className="p-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-center">
+      {steps.map((step, index) => {
+        const state = flowSteps[step.number];
+        const next = steps[index + 1];
+        return <React.Fragment key={step.number}>
+          <li className={`backend-flow-card backend-flow-card--${state.status} rounded-xl border p-4`}>
+            <div className="flex items-start gap-3">
+              <span className="backend-flow-number shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold">{state.status === 'success' ? <Icon icon="solar:check-circle-bold" className="text-xl" /> : step.number}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex gap-2 items-start justify-between">
+                  <h3 className="font-bold text-sm text-slate-800">{step.number}. {step.title}</h3>
+                  <span className="backend-flow-status shrink-0 text-[10px] font-bold inline-flex items-center gap-1"><Icon icon={statusIcon[state.status]} className={state.status === 'active' ? 'animate-spin' : ''} />{statusText[state.status]}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{state.message || step.description}</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+              {step.operations.map(operation => {
+                const operationStatus = state.operations[operation.id] || 'blocked';
+                return <div key={operation.id} className="flex items-start gap-2 text-xs">
+                  <Icon icon={statusIcon[operationStatus]} className={`mt-0.5 shrink-0 ${operationStyle[operationStatus]} ${operationStatus === 'active' ? 'animate-spin' : ''}`} />
+                  <span className="min-w-0 text-slate-600"><span className="font-semibold">{operation.label}</span>{operation.endpoint && <code className="block text-[10px] text-slate-400 mt-0.5 break-all">{operation.endpoint}</code>}</span>
+                </div>;
+              })}
+            </div>
+          </li>
+          {next && <li aria-hidden="true" className={`backend-flow-connector ${connectorClass(state, flowSteps[next.number])}`}><span /></li>}
+        </React.Fragment>;
       })}
     </ol>
   </section>
