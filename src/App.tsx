@@ -8,6 +8,7 @@ import { IncomingCallModal } from './components/IncomingCallModal';
 import { AddPersonModal } from './components/AddPersonModal';
 import { OnboardingTour } from './components/OnboardingTour';
 import { NotebookGuide } from './components/NotebookGuide';
+import { LiveDemoPage } from './components/LiveDemoPage';
 import { CRM_CONTACTS, Contact } from './data/crmData';
 import { Icon } from '@iconify/react';
 
@@ -18,10 +19,10 @@ const App: React.FC = () => {
   const [mode, setMode] = useState<'headless' | 'builtin'>('builtin');
   const [contacts, setContacts] = useState<Contact[]>(CRM_CONTACTS);
   const [isAddPersonOpen, setIsAddPersonOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'crm' | 'notebook' | 'settings'>('crm');
+  const [currentView, setCurrentView] = useState<'crm' | 'notebook' | 'settings' | 'live-demo'>('crm');
   
   // Widget Config State
-  const [widgetConfig, setWidgetConfig] = useState<any>({
+  const [widgetConfig, setWidgetConfig] = useState<Record<string, unknown>>({
     enableFloatingBubble: true,
     overlayPositions: {
       dialpad: 'top-right',
@@ -450,6 +451,8 @@ const App: React.FC = () => {
           />
         ) : currentView === 'notebook' ? (
           <NotebookGuide />
+        ) : currentView === 'live-demo' ? (
+          <LiveDemoPage />
         ) : (
           <SettingsPage 
             token={savedToken}

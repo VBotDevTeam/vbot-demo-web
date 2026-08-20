@@ -5,8 +5,8 @@ interface TopNavbarProps {
   onDialerToggle: (e: React.MouseEvent) => void;
   onOpenSettings: () => void;
   onStartTour: () => void;
-  currentView: 'crm' | 'notebook' | 'settings';
-  onViewChange: (view: 'crm' | 'notebook' | 'settings') => void;
+  currentView: 'crm' | 'notebook' | 'settings' | 'live-demo';
+  onViewChange: (view: 'crm' | 'notebook' | 'settings' | 'live-demo') => void;
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
@@ -72,6 +72,19 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         >
           <Icon icon="solar:settings-bold" className="text-sm" /> 
           <span>Cấu hình SDK</span>
+        </button>
+
+        <button
+          onClick={() => onViewChange('live-demo')}
+          className={`py-1.5 px-3 rounded text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all duration-150 border ${
+            currentView === 'live-demo'
+              ? 'bg-sky-600 border-sky-500 text-white'
+              : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-200 hover:text-white'
+          }`}
+          title="Mở Demo live VBot Web SDK"
+        >
+          <Icon icon="solar:play-circle-bold" className="text-sm" />
+          <span>Demo live</span>
         </button>
 
         {/* Dialer Toggle Button - Green with a radial pulse ring */}
