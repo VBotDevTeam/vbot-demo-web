@@ -67,7 +67,7 @@ export const ApiFlowDiagram: React.FC<Props> = ({ flowSteps, sdkToken, copyNotic
         return <React.Fragment key={step.number}>
           <li className={`backend-flow-card backend-flow-card--${state.status} rounded-xl border p-4`}>
             <div className="flex items-center gap-3">
-              <span className="backend-flow-number shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold">{state.status === 'success' ? <Icon icon="solar:check-circle-bold" className="text-xl" /> : step.number}</span>
+              <span className="backend-flow-number shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold">{state.status === 'success' ? '✓' : step.number}</span>
               <h3 className="font-bold text-sm text-slate-800">{step.title}</h3>
             </div>
             <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
@@ -75,7 +75,7 @@ export const ApiFlowDiagram: React.FC<Props> = ({ flowSteps, sdkToken, copyNotic
                 const status = taskStatus(task.operations.map(operation => state.operations[operation] || 'blocked'));
                 return <div key={task.label} className="flex items-center gap-2 text-sm text-slate-700">
                   <span className={`w-5 h-5 rounded-[4px] border flex shrink-0 items-center justify-center ${checkboxClass[status]}`}>
-                    {status === 'success' && <Icon icon="solar:check-read-bold" className="text-sm" />}
+                    {status === 'success' && '✓'}
                     {status === 'active' && <Icon icon="solar:refresh-bold" className="text-sm animate-spin" />}
                     {status === 'error' && <Icon icon="solar:close-circle-bold" className="text-sm" />}
                   </span>
