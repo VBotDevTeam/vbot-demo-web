@@ -2,12 +2,12 @@ export type IntegrationMode = 'builtin' | 'headless';
 
 export const SDK_TOKEN_PLACEHOLDER = '{{VBOT_SDK_TOKEN}}';
 
-export const getLiveDemoTemplate = (mode: IntegrationMode) => `<!doctype html>
+export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBOT_SDK_BUNDLE_URL}}') => `<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="/vbot-sdk.umd.js" defer></script>
+    <script src="${sdkBundleUrl}" defer></script>
     <style>
       body { margin: 0; padding: 24px; font-family: Inter, system-ui, sans-serif; color: #1e293b; background: #f8fafc; }
       main { max-width: 540px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 14px; background: white; }
@@ -20,17 +20,23 @@ export const getLiveDemoTemplate = (mode: IntegrationMode) => `<!doctype html>
     <main>
       <h2>VBot Web SDK</h2>
       <p>${mode === 'headless' ? 'Headless mode: website của bạn tự xây dựng giao diện cuộc gọi.' : 'Built-in mode: VBot SDK cung cấp giao diện cuộc gọi mặc định.'}</p>
-      <button id="call-customer" type="button">Gọi khách hàng</button>
+      <div class="actions">
+        <button id="open-dialer" type="button">Mở bàn phím số</button>
+        <button id="call-customer" type="button">Gọi khách hàng</button>
+      </div>
       <p id="connection-status">Đang chờ SDK kết nối…</p>
       <vbot-widget
         id="vbot-widget"
         token="{{VBOT_SDK_TOKEN}}"
         base-url="{{VBOT_API_BASE_URL}}"
+        config='{"enableFloatingBubble":true,"overlayPositions":{"dialpad":"bottom-right","calling":"bottom-right","incoming":"bottom-right"},"overlayMargins":{"dialpad":{"top":0,"right":16,"bottom":72,"left":0},"calling":{"top":0,"right":16,"bottom":72,"left":0},"incoming":{"top":0,"right":16,"bottom":72,"left":0}}}'
         {{VBOT_HEADLESS_ATTRIBUTE}}
       ></vbot-widget>
     </main>
     <script>
-      window.addEventListener('DOMContentLoaded', function () {
+      // This script intentionally binds before the deferred SDK script upgrades the element.
+      // It prevents short-lived connection events from being missed during startup.
+      (function () {
         var widget = document.getElementById('vbot-widget');
         var status = document.getElementById('connection-status');
         var online = false;
@@ -39,11 +45,16 @@ export const getLiveDemoTemplate = (mode: IntegrationMode) => `<!doctype html>
         widget.addEventListener('vbot:onUserConnectionFailed', function () { online = false; setStatus('SDK không thể kết nối. Kiểm tra token hoặc cấu hình.'); });
         widget.addEventListener('vbot:onCallIncoming', function () { setStatus('Có cuộc gọi đến'); });
         widget.addEventListener('vbot:onCallEnded', function () { setStatus(online ? 'SDK trực tuyến — cuộc gọi đã kết thúc' : 'Cuộc gọi đã kết thúc'); });
+        document.getElementById('open-dialer').addEventListener('click', function () {
+          if (!online) { setStatus('SDK chưa trực tuyến, chưa thể mở bàn phím số.'); return; }
+          if (typeof widget.showCallUI !== 'function') { setStatus('Chế độ Headless không có bàn phím số mặc định.'); return; }
+          widget.showCallUI();
+        });
         document.getElementById('call-customer').addEventListener('click', function () {
           if (!online) { setStatus('SDK chưa trực tuyến, chưa thể thực hiện cuộc gọi.'); return; }
           widget.makeCall('0900000000');
         });
-      });
+      })();
     </script>
   </body>
 </html>`;
