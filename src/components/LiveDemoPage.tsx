@@ -6,6 +6,7 @@ import { IntegrationMode } from '../data/liveDemoTemplate';
 
 interface Hotline { hotline_name: string; hotline_number: string; hotline_code: string; hotline_type?: string }
 interface SdkHotlinePayload { hotline_name?: string; hotline_number?: string; hotline_code?: string; name?: string; phoneNumber?: string; phone_number?: string; number?: string }
+interface SdkMemberInfo { member_name?: string; member_ext_number?: string; member_no?: string; member_money?: number | string; member_status?: number; expiration_date?: string }
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://open-api-staging.vbot.vn/v3.0';
 const initialFlow: FlowSteps = {
@@ -30,6 +31,7 @@ export const LiveDemoPage: React.FC = () => {
   const [selectedHotlines, setSelectedHotlines] = useState<string[]>([]);
   const [sdkHotlines, setSdkHotlines] = useState<Hotline[]>([]);
   const [sdkAccountBalance, setSdkAccountBalance] = useState<number | null>(null);
+  const [sdkMemberInfo, setSdkMemberInfo] = useState<SdkMemberInfo | null>(null);
   const [adminBalance, setAdminBalance] = useState<number | null>(null);
   const [sdkToken, setSdkToken] = useState('');
   const [flowSteps, setFlowSteps] = useState<FlowSteps>(initialFlow);
@@ -49,7 +51,7 @@ export const LiveDemoPage: React.FC = () => {
 
   const invalidateToken = (reason = 'Thông tin đã thay đổi; cần đồng bộ lại.') => {
     if (!sdkToken && !sdkHotlines.length) return;
-    setSdkToken(''); setSdkHotlines([]); setSdkAccountBalance(null); setCopyNotice('');
+    setSdkToken(''); setSdkHotlines([]); setSdkAccountBalance(null); setSdkMemberInfo(null); setCopyNotice('');
     setStep(2, 'pending', reason, { sdkToken: 'pending', sdkHotlines: 'blocked', funding: 'pending' });
     setStep(3, 'blocked', 'Cần đồng bộ SDK để lấy token mới.', { tokenSaved: 'blocked' });
   };
@@ -72,11 +74,13 @@ export const LiveDemoPage: React.FC = () => {
     if (!partnerApiKey.trim() || !memberNo.trim()) return;
     try {
       const result = await parseResponse(await api(`/api/member/getByMemberNo?member_no=${encodeURIComponent(memberNo.trim())}`, { method: 'GET' }));
-      const memberData = result.data as Record<string, unknown> | undefined;
+      const memberData = result.data as SdkMemberInfo | undefined;
       const balance = Number(memberData?.member_money);
       setSdkAccountBalance(Number.isFinite(balance) ? balance : null);
+      setSdkMemberInfo(memberData || null);
     } catch {
       setSdkAccountBalance(null);
+      setSdkMemberInfo(null);
     }
   };
 
@@ -130,7 +134,7 @@ export const LiveDemoPage: React.FC = () => {
   const requestToken = async () => {
     if (!partnerApiKey.trim()) { setStep(1, 'blocked', 'Cần nhập Partner API Key.', { hotlines: 'blocked', adminBalance: 'blocked' }); keyRef.current?.focus(); return; }
     if (!memberNo.trim()) { setStep(2, 'blocked', 'Cần nhập Member No để đồng bộ SDK.', { sdkToken: 'blocked' }); memberRef.current?.focus(); return; }
-    setLoadingToken(true); setSdkToken(''); setSdkHotlines([]); setSdkAccountBalance(null); setCopyNotice('');
+    setLoadingToken(true); setSdkToken(''); setSdkHotlines([]); setSdkAccountBalance(null); setSdkMemberInfo(null); setCopyNotice('');
     setStep(2, 'active', 'Backend đang cấp token cho tài khoản SDK.', { sdkToken: 'active', sdkHotlines: 'blocked', funding: 'pending' });
     setStep(3, 'blocked', 'Chờ backend trả SDK token.', { tokenSaved: 'blocked' });
     try {
@@ -206,10 +210,16 @@ export const LiveDemoPage: React.FC = () => {
         </section>
         <section className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="step-panel-heading"><span>2</span><div><h3>Cấu hình tài khoản SDK</h3><p>Chọn hotline cho thành viên, đồng bộ SDK và nạp/trừ số dư khi cần.</p></div></div>
-          <div className="p-4 space-y-4"><div className="grid sm:grid-cols-2 gap-4"><label className="text-xs font-bold text-slate-600">Mã nhân viên (Member No)<input ref={memberRef} value={memberNo} onChange={event => { invalidateToken(); setSdkAccountBalance(null); setMemberNo(event.target.value); }} placeholder="Ví dụ: agent_001" className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-500" /></label><label className="text-xs font-bold text-slate-600">Cơ chế giao diện<select value={mode} onChange={event => { invalidateToken('Chế độ giao diện đã thay đổi; cần đồng bộ lại.'); setMode(event.target.value as IntegrationMode); }} className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium outline-none focus:border-sky-500"><option value="builtin">Built-in Native UI (Sử dụng widget mặc định)</option><option value="headless">Headless Custom UI (Ẩn giao diện mặc định, tự build)</option></select></label></div>
+          <div className="p-4 space-y-4"><div className="grid sm:grid-cols-2 gap-4"><label className="text-xs font-bold text-slate-600">Mã nhân viên (Member No)<input ref={memberRef} value={memberNo} onChange={event => { invalidateToken(); setSdkAccountBalance(null); setSdkMemberInfo(null); setMemberNo(event.target.value); }} placeholder="Ví dụ: agent_001" className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-500" /></label><label className="text-xs font-bold text-slate-600">Cơ chế giao diện<select value={mode} onChange={event => { invalidateToken('Chế độ giao diện đã thay đổi; cần đồng bộ lại.'); setMode(event.target.value as IntegrationMode); }} className="mt-1.5 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium outline-none focus:border-sky-500"><option value="builtin">Built-in Native UI (Sử dụng widget mặc định)</option><option value="headless">Headless Custom UI (Ẩn giao diện mặc định, tự build)</option></select></label></div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><div className="flex items-center justify-between gap-2 text-xs font-bold text-slate-700"><span className="flex items-center gap-2"><Icon icon="solar:phone-bold" className="text-sky-600" /> Hotline cấp cho tài khoản SDK</span>{hotlines.length > 0 && selectedHotlines.length === 0 && <span className="text-[11px] text-amber-600 font-medium">Chưa chọn hotline</span>}</div>{hotlines.length ? <div className="mt-3 max-h-40 overflow-y-auto grid sm:grid-cols-2 gap-2">{hotlines.map(item => <label key={item.hotline_code} className={`flex gap-2 items-center p-2 bg-white rounded border text-xs cursor-pointer ${selectedHotlines.includes(item.hotline_code) ? 'border-sky-300 bg-sky-50' : 'border-slate-200'}`}><input type="checkbox" checked={selectedHotlines.includes(item.hotline_code)} onChange={() => toggleHotline(item.hotline_code)} className="accent-sky-600" /><span className="min-w-0"><b className="block truncate">{item.hotline_name}</b><span className="text-slate-400 font-mono">{item.hotline_number || item.hotline_code}</span></span></label>)}</div> : <p className="text-xs text-slate-400 mt-2">Hoàn thành bước 1 để chọn hotline.</p>}</div>
             <div className="flex flex-wrap gap-3 items-center"><button onClick={requestToken} disabled={loadingToken || !partnerApiKey.trim() || !memberNo.trim()} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 px-4 py-2 rounded-lg text-white text-xs font-bold"><Icon icon="solar:key-bold" className="inline mr-1" />{loadingToken ? 'Đang đồng bộ…' : 'Đồng bộ SDK'}</button><span className="text-[11px] text-slate-500">Gọi <code>tokenSdk</code>, sau đó tải <code>getHotline</code> của tài khoản SDK.</span></div>
-            <div className="grid lg:grid-cols-2 gap-3"><div className="rounded-lg border border-sky-100 bg-sky-50/40 p-3"><div className="flex items-center justify-between gap-2"><div className="text-xs font-bold text-slate-700">Hotline tài khoản SDK</div><span className="text-[11px] font-bold text-emerald-700">Số dư: {formatMoney(sdkAccountBalance)}</span></div>{sdkHotlines.length ? <div className="mt-2 flex flex-wrap gap-1.5">{sdkHotlines.map(item => <span key={item.hotline_code} className="text-[11px] bg-white border border-sky-100 text-sky-700 rounded px-2 py-1">{item.hotline_name || item.hotline_number || item.hotline_code}</span>)}</div> : <p className="mt-1 text-[11px] text-slate-500">Sẽ cập nhật sau khi đồng bộ SDK.</p>}</div><div className="rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold text-slate-700">Nạp / trừ số dư SDK</div><div className="mt-2 flex flex-wrap gap-2 items-end"><label className="flex-1 min-w-[150px] text-[11px] font-medium text-slate-500">Số tiền (VND)<input type="number" min="1" value={moneyAmount} onChange={event => setMoneyAmount(event.target.value)} className="mt-1 w-full px-2.5 py-1.5 rounded-md border border-slate-200 text-sm font-semibold outline-none focus:border-sky-500" /></label><button onClick={() => adjustMemberMoney(false)} disabled={isAdjustingMoney || !partnerApiKey.trim() || !memberNo.trim()} className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-xs font-bold text-white">Nạp tiền</button><button onClick={() => adjustMemberMoney(true)} disabled={isAdjustingMoney || !partnerApiKey.trim() || !memberNo.trim()} className="px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-xs font-bold text-white">Trừ tiền</button></div></div></div>
+            <div className="grid lg:grid-cols-2 gap-3">
+              <section className="rounded-lg border border-sky-100 bg-sky-50/40 p-3">
+                <div className="flex items-center justify-between gap-2 border-b border-sky-100 pb-2"><span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Icon icon="solar:user-id-bold" className="text-sky-600" /> Thông tin tài khoản SDK</span>{sdkMemberInfo ? <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sdkMemberInfo.member_status === 1 || sdkMemberInfo.member_status === 6 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{sdkMemberInfo.member_status === 1 ? 'Đang hoạt động' : `Trạng thái: ${sdkMemberInfo.member_status ?? '—'}`}</span> : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Chưa đồng bộ</span>}</div>
+                {sdkMemberInfo ? <div className="mt-3 grid sm:grid-cols-2 gap-x-4 gap-y-2 text-xs"><div className="flex justify-between gap-2 border-b border-sky-100 pb-1"><span className="text-slate-500">Tên nhân viên</span><strong className="truncate text-slate-800" title={sdkMemberInfo.member_name}>{sdkMemberInfo.member_name || '—'}</strong></div><div className="flex justify-between gap-2 border-b border-sky-100 pb-1"><span className="text-slate-500">Mã nhân viên</span><strong className="font-mono text-slate-800">{sdkMemberInfo.member_no || memberNo || '—'}</strong></div><div className="flex justify-between gap-2 border-b border-sky-100 pb-1"><span className="text-slate-500">Số máy nhánh (Ext)</span><strong className="font-mono text-slate-800">{sdkMemberInfo.member_ext_number || '—'}</strong></div><div className="flex justify-between gap-2 border-b border-sky-100 pb-1"><span className="text-slate-500">Số dư</span><strong className="text-emerald-700">{formatMoney(sdkAccountBalance)}</strong></div><div className="flex justify-between gap-2 border-b border-sky-100 pb-1 sm:col-span-2"><span className="text-slate-500">Ngày hết hạn</span><strong className="text-slate-800">{sdkMemberInfo.expiration_date ? new Date(sdkMemberInfo.expiration_date).toLocaleDateString('vi-VN') : 'Không giới hạn'}</strong></div><div className="sm:col-span-2"><span className="block text-slate-500 mb-1">Hotline liên kết</span>{sdkHotlines.length ? <div className="flex flex-wrap gap-1.5">{sdkHotlines.map(item => <span key={item.hotline_code} className="text-[11px] bg-white border border-sky-100 text-sky-700 rounded px-2 py-1">{item.hotline_name || item.hotline_number || item.hotline_code}</span>)}</div> : <span className="text-[11px] italic text-slate-400">Chưa có hotline được cấp.</span>}</div></div> : <p className="py-5 text-center text-xs text-slate-400">Đồng bộ SDK để tải thông tin tài khoản nhân viên.</p>}
+              </section>
+              <div className="rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold text-slate-700">Nạp / trừ số dư SDK</div><div className="mt-2 flex flex-wrap gap-2 items-end"><label className="flex-1 min-w-[150px] text-[11px] font-medium text-slate-500">Số tiền (VND)<input type="number" min="1" value={moneyAmount} onChange={event => setMoneyAmount(event.target.value)} className="mt-1 w-full px-2.5 py-1.5 rounded-md border border-slate-200 text-sm font-semibold outline-none focus:border-sky-500" /></label><button onClick={() => adjustMemberMoney(false)} disabled={isAdjustingMoney || !partnerApiKey.trim() || !memberNo.trim()} className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-xs font-bold text-white">Nạp tiền</button><button onClick={() => adjustMemberMoney(true)} disabled={isAdjustingMoney || !partnerApiKey.trim() || !memberNo.trim()} className="px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-xs font-bold text-white">Trừ tiền</button></div></div>
+            </div>
           </div>
         </section>
       </div>
