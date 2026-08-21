@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from '@iconify/react';
+import { IntegrationMode } from '../data/liveDemoTemplate';
 
 export type FlowStatus = 'pending' | 'active' | 'success' | 'error' | 'blocked';
 export type FlowOperation = 'hotlines' | 'adminBalance' | 'sdkToken' | 'sdkHotlines' | 'funding' | 'tokenSaved';
@@ -17,16 +18,33 @@ interface Props {
   sdkToken: string;
   copyNotice: string;
   onCopyToken: () => void;
+  partnerApiKey: string;
+  mode: IntegrationMode;
+  isLoading: boolean;
+  onPartnerApiKeyChange: (value: string) => void;
+  onModeChange: (mode: IntegrationMode) => void;
+  onLoadData: () => void;
 }
 
 const steps: Array<{
   number: 1 | 2 | 3;
   title: string;
   tasks: Array<{ label: string; operations: FlowOperation[] }>;
+  apiCalls: string[];
 }> = [
-  { number: 1, title: 'Tạo tài khoản SDK', tasks: [{ label: 'Sinh api-key', operations: ['hotlines', 'adminBalance'] }] },
-  { number: 2, title: 'Gán thông tin', tasks: [{ label: 'Gán hotline cho thành viên', operations: ['sdkHotlines'] }, { label: 'Gán số dư cho thành viên', operations: ['funding'] }] },
-  { number: 3, title: 'Lưu SDK token', tasks: [{ label: 'SDK token', operations: ['tokenSaved'] }] },
+  {
+    number: 1,
+    title: 'Tạo tài khoản SDK',
+    tasks: [{ label: 'Kiểm tra API Key và dữ liệu demo', operations: ['hotlines', 'adminBalance'] }],
+    apiCalls: ['GET /api/hotline/getAll', 'GET /api/account/balance'],
+  },
+  {
+    number: 2,
+    title: 'Gán thông tin',
+    tasks: [{ label: 'Gán hotline cho thành viên', operations: ['sdkToken', 'sdkHotlines'] }, { label: 'Gán số dư cho thành viên', operations: ['funding'] }],
+    apiCalls: ['POST /api/sdk/tokenSdk', 'GET /api/sdk/getHotline', 'GET /api/member/getByMemberNo'],
+  },
+  { number: 3, title: 'Lưu SDK token', tasks: [{ label: 'SDK token', operations: ['tokenSaved'] }], apiCalls: [] },
 ];
 
 const taskStatus = (states: FlowStatus[]): FlowStatus => {
@@ -51,7 +69,9 @@ const connectorClass = (current: FlowStepState, next: FlowStepState) => {
   return '';
 };
 
-export const ApiFlowDiagram: React.FC<Props> = ({ flowSteps, sdkToken, copyNotice, onCopyToken }) => (
+export const ApiFlowDiagram: React.FC<Props> = ({
+  flowSteps, sdkToken, copyNotice, onCopyToken, partnerApiKey, mode, isLoading, onPartnerApiKeyChange, onModeChange, onLoadData,
+}) => (
   <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
     <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
       <div>
@@ -83,6 +103,26 @@ export const ApiFlowDiagram: React.FC<Props> = ({ flowSteps, sdkToken, copyNotic
                 </div>;
               })}
             </div>
+            {step.apiCalls.length > 0 && <div className="mt-3 pt-3 border-t border-slate-100">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">API sử dụng</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {step.apiCalls.map(apiCall => <code key={apiCall} className="rounded bg-slate-100 px-1.5 py-1 text-[10px] font-medium text-slate-600">{apiCall}</code>)}
+              </div>
+            </div>}
+            {step.number === 1 && <div className="mt-4 space-y-3 border-t border-slate-100 pt-3">
+              <label className="block text-xs font-bold text-slate-600">VBot Partner API Key
+                <input type="password" value={partnerApiKey} onChange={event => onPartnerApiKeyChange(event.target.value)} placeholder="Nhập API Key" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-normal outline-none focus:border-sky-500" />
+              </label>
+              <label className="block text-xs font-bold text-slate-600">Cơ chế giao diện
+                <select value={mode} onChange={event => onModeChange(event.target.value as IntegrationMode)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-sky-500">
+                  <option value="builtin">Built-in Native UI</option>
+                  <option value="headless">Headless Custom UI</option>
+                </select>
+              </label>
+              <button onClick={onLoadData} disabled={isLoading} className="w-full rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-700 disabled:bg-slate-300">
+                <Icon icon="solar:restart-bold" className={`mr-1 inline ${isLoading ? 'animate-spin' : ''}`} />{isLoading ? 'Đang tải dữ liệu…' : 'Tải dữ liệu'}
+              </button>
+            </div>}
             {step.number === 3 && sdkToken && <div className="mt-3 flex overflow-hidden rounded-lg border border-slate-200"><input readOnly value={sdkToken} aria-label="SDK token" className="min-w-0 flex-1 bg-slate-50 px-2.5 py-1.5 font-mono text-xs text-slate-700 outline-none" /><button onClick={onCopyToken} title="Sao chép SDK token" aria-label="Sao chép SDK token" className="w-10 border-l border-slate-200 text-slate-600 hover:bg-slate-50"><Icon icon="solar:copy-bold" className="mx-auto" /></button></div>}
             {step.number === 3 && copyNotice && <p className="mt-2 text-xs text-emerald-700">{copyNotice}</p>}
           </li>
