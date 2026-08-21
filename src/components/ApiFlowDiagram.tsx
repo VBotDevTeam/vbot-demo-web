@@ -55,7 +55,7 @@ export const ApiFlowDiagram: React.FC<Props> = ({ flowSteps, sdkToken, copyNotic
   <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
     <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
       <div>
-        <h2 className="font-bold text-slate-800 flex items-center gap-2"><Icon icon="solar:server-path-bold" className="text-sky-600" /> Sơ đồ xử lý backend đối tác</h2>
+        <h2 className="font-bold text-slate-800 flex items-center gap-2"><Icon icon="solar:server-path-bold" className="text-sky-600" /> Quy trình tích hợp</h2>
         <p className="text-xs text-slate-500 mt-1">Mỗi bước cập nhật theo đúng thao tác trong phần cấu hình bên dưới.</p>
       </div>
       <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-sky-700 bg-sky-50 px-2 py-1 rounded-full">3 bước</span>
