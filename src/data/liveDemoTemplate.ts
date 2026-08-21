@@ -9,11 +9,18 @@ export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBO
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="${sdkBundleUrl}" defer></script>
     <style>
-      body { margin: 0; padding: 24px; font-family: Inter, system-ui, sans-serif; color: #1e293b; background: #f8fafc; }
-      main { max-width: 540px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 14px; background: white; }
+      html, body { width: 100%; min-height: 100%; }
+      body { box-sizing: border-box; min-height: 100vh; margin: 0; font-family: Inter, system-ui, sans-serif; color: #1e293b; background: white; }
+      main { box-sizing: border-box; width: 100%; min-height: 100vh; padding: 24px; background: white; }
       h2 { margin: 0 0 8px; font-size: 18px; } p { color: #64748b; font-size: 14px; line-height: 1.5; }
       button { border: 0; border-radius: 8px; padding: 10px 14px; color: white; background: #0284c7; font-weight: 700; cursor: pointer; }
       #connection-status { padding: 10px; border-radius: 8px; background: #f1f5f9; font-weight: 600; }
+      .dialer-bubble { position: fixed; z-index: 10000; right: 24px; bottom: 24px; width: 48px; height: 48px; padding: 0; border-radius: 999px; background: #10b981; box-shadow: 0 10px 20px rgba(5, 150, 105, .28); display: inline-flex; align-items: center; justify-content: center; isolation: isolate; transition: transform .15s ease, background .15s ease; }
+      .dialer-bubble::before { content: ''; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: #34d399; pointer-events: none; animation: dialer-bubble-ping 1.25s cubic-bezier(0, 0, .2, 1) infinite; }
+      .dialer-bubble:hover { background: #059669; transform: scale(1.05); }
+      .dialer-bubble:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 3px; }
+      .dialer-bubble svg { width: 20px; height: 20px; }
+      @keyframes dialer-bubble-ping { 0% { transform: scale(1); opacity: .55; } 75%, 100% { transform: scale(1.65); opacity: 0; } }
     </style>
   </head>
   <body>
@@ -21,15 +28,21 @@ export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBO
       <h2>VBot Web SDK</h2>
       <p>${mode === 'headless' ? 'Headless mode: website của bạn tự xây dựng giao diện cuộc gọi.' : 'Built-in mode: VBot SDK cung cấp giao diện cuộc gọi mặc định.'}</p>
       <div class="actions">
-        <button id="open-dialer" type="button">Mở bàn phím số</button>
         <button id="call-customer" type="button">Gọi khách hàng</button>
       </div>
       <p id="connection-status">Đang chờ SDK kết nối…</p>
+      <button id="open-dialer" class="dialer-bubble" type="button" title="Mở bàn phím số" aria-label="Mở bàn phím số">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="6" cy="6" r="2" /><circle cx="12" cy="6" r="2" /><circle cx="18" cy="6" r="2" />
+          <circle cx="6" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="18" cy="12" r="2" />
+          <circle cx="6" cy="18" r="2" /><circle cx="12" cy="18" r="2" /><circle cx="18" cy="18" r="2" />
+        </svg>
+      </button>
       <vbot-widget
         id="vbot-widget"
         token="{{VBOT_SDK_TOKEN}}"
         base-url="{{VBOT_API_BASE_URL}}"
-        config='{"enableFloatingBubble":true,"overlayPositions":{"dialpad":"bottom-right","calling":"bottom-right","incoming":"bottom-right"},"overlayMargins":{"dialpad":{"top":0,"right":16,"bottom":72,"left":0},"calling":{"top":0,"right":16,"bottom":72,"left":0},"incoming":{"top":0,"right":16,"bottom":72,"left":0}}}'
+        config='{"enableFloatingBubble":true,"overlayPositions":{"dialpad":"bottom-right","calling":"bottom-right","incoming":"bottom-right"},"overlayMargins":{"dialpad":{"top":0,"right":16,"bottom":88,"left":0},"calling":{"top":0,"right":16,"bottom":88,"left":0},"incoming":{"top":0,"right":16,"bottom":88,"left":0}}}'
         {{VBOT_HEADLESS_ATTRIBUTE}}
       ></vbot-widget>
     </main>
