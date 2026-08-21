@@ -1,6 +1,19 @@
 export type IntegrationMode = 'builtin' | 'headless';
 
 export const SDK_TOKEN_PLACEHOLDER = '{{VBOT_SDK_TOKEN}}';
+export const SDK_WIDGET_INSERTION_MARKER = '<!-- DÁN ĐOẠN MÃ <vbot-widget> ĐÃ SAO CHÉP Ở PHẦN TRÊN VÀO ĐÂY -->';
+
+export const getSdkWidgetSnippet = (
+  mode: IntegrationMode,
+  token = SDK_TOKEN_PLACEHOLDER,
+  baseUrl = '{{VBOT_API_BASE_URL}}',
+) => `<vbot-widget
+  id="vbot-widget"
+  token="${token}"
+  base-url="${baseUrl}"
+  config='{"enableFloatingBubble":true,"overlayPositions":{"dialpad":"bottom-right","calling":"bottom-right","incoming":"bottom-right"},"overlayMargins":{"dialpad":{"top":0,"right":16,"bottom":88,"left":0},"calling":{"top":0,"right":16,"bottom":88,"left":0},"incoming":{"top":0,"right":16,"bottom":88,"left":0}}}'
+  ${mode === 'headless' ? 'headless="true"' : ''}
+></vbot-widget>`;
 
 export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBOT_SDK_BUNDLE_URL}}') => `<!doctype html>
 <html lang="vi">
@@ -15,8 +28,9 @@ export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBO
       h2 { margin: 0 0 8px; font-size: 18px; } p { color: #64748b; font-size: 14px; line-height: 1.5; }
       button { border: 0; border-radius: 8px; padding: 10px 14px; color: white; background: #0284c7; font-weight: 700; cursor: pointer; }
       #connection-status { padding: 10px; border-radius: 8px; background: #f1f5f9; font-weight: 600; }
-      .dialer-bubble { position: fixed; z-index: 10000; right: 24px; bottom: 24px; width: 48px; height: 48px; padding: 0; border-radius: 999px; background: #10b981; box-shadow: 0 10px 20px rgba(5, 150, 105, .28); display: inline-flex; align-items: center; justify-content: center; isolation: isolate; transition: transform .15s ease, background .15s ease; }
+      .dialer-bubble { position: fixed; z-index: 10000; right: 24px; bottom: 24px; width: 48px; height: 48px; padding: 0; border-radius: 999px; background: #10b981; box-shadow: 0 10px 20px rgba(5, 150, 105, .28); display: inline-flex; align-items: center; justify-content: center; isolation: isolate; transition: opacity .15s ease, transform .15s ease, background .15s ease; }
       .dialer-bubble::before { content: ''; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: #34d399; pointer-events: none; animation: dialer-bubble-ping 1.25s cubic-bezier(0, 0, .2, 1) infinite; }
+      .dialer-bubble.is-call-active { opacity: 0; pointer-events: none; transform: scale(.85); }
       .dialer-bubble:hover { background: #059669; transform: scale(1.05); }
       .dialer-bubble:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 3px; }
       .dialer-bubble svg { width: 20px; height: 20px; }
@@ -38,13 +52,7 @@ export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBO
           <circle cx="6" cy="18" r="2" /><circle cx="12" cy="18" r="2" /><circle cx="18" cy="18" r="2" />
         </svg>
       </button>
-      <vbot-widget
-        id="vbot-widget"
-        token="{{VBOT_SDK_TOKEN}}"
-        base-url="{{VBOT_API_BASE_URL}}"
-        config='{"enableFloatingBubble":true,"overlayPositions":{"dialpad":"bottom-right","calling":"bottom-right","incoming":"bottom-right"},"overlayMargins":{"dialpad":{"top":0,"right":16,"bottom":88,"left":0},"calling":{"top":0,"right":16,"bottom":88,"left":0},"incoming":{"top":0,"right":16,"bottom":88,"left":0}}}'
-        {{VBOT_HEADLESS_ATTRIBUTE}}
-      ></vbot-widget>
+      ${SDK_WIDGET_INSERTION_MARKER}
     </main>
     <script>
       // This script intentionally binds before the deferred SDK script upgrades the element.
@@ -52,12 +60,18 @@ export const getLiveDemoTemplate = (mode: IntegrationMode, sdkBundleUrl = '{{VBO
       (function () {
         var widget = document.getElementById('vbot-widget');
         var status = document.getElementById('connection-status');
+        var dialerBubble = document.getElementById('open-dialer');
         var online = false;
         function setStatus(message) { status.textContent = message; }
+        function syncBubbleVisibility(event) {
+          var callState = event && event.detail && event.detail.state;
+          dialerBubble.classList.toggle('is-call-active', callState === 'dialing' || callState === 'ringing' || callState === 'in-call');
+        }
         widget.addEventListener('vbot:onUserConnected', function () { online = true; setStatus('SDK trực tuyến — sẵn sàng gọi'); });
         widget.addEventListener('vbot:onUserConnectionFailed', function () { online = false; setStatus('SDK không thể kết nối. Kiểm tra token hoặc cấu hình.'); });
         widget.addEventListener('vbot:onCallIncoming', function () { setStatus('Có cuộc gọi đến'); });
-        widget.addEventListener('vbot:onCallEnded', function () { setStatus(online ? 'SDK trực tuyến — cuộc gọi đã kết thúc' : 'Cuộc gọi đã kết thúc'); });
+        widget.addEventListener('vbot:onCallStateChange', syncBubbleVisibility);
+        widget.addEventListener('vbot:onCallEnded', function () { dialerBubble.classList.remove('is-call-active'); setStatus(online ? 'SDK trực tuyến — cuộc gọi đã kết thúc' : 'Cuộc gọi đã kết thúc'); });
         document.getElementById('open-dialer').addEventListener('click', function () {
           if (!online) { setStatus('SDK chưa trực tuyến, chưa thể mở bàn phím số.'); return; }
           if (typeof widget.showCallUI !== 'function') { setStatus('Chế độ Headless không có bàn phím số mặc định.'); return; }
